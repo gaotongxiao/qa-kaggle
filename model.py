@@ -9,7 +9,7 @@ class Model(nn.Module):
     def __init__(
             self,
             n_src_vocab, len_max_seq,
-            d_word_vec=100, d_model=512, d_inner=2048,
+            d_word_vec=100, d_model=100, d_inner=2048,
             n_layers=6, n_head=8, d_k=64, d_v=64, dropout=0.1,
             word_vec=None):
         super().__init__()
@@ -23,14 +23,19 @@ class Model(nn.Module):
 
 
 if __name__ == '__main__':
-    training_data_loader, testing_data_loader, seq_max_len = load_data(2, 16)
+    cuda = True
+    training_data_loader, testing_data_loader, seq_max_len = load_data(2, 1)
 
     wd = pickle.load(open("data/preloaded.md", "rb"))
-    embed = torch.from_numpy(wd.embedding).cuda()
+    embed = torch.from_numpy(wd.embedding).type(torch.FloatTensor)
     model = Model(400003, seq_max_len, word_vec=embed).cuda()
-    a = self.encoder()
+    device = torch.device('cuda' if cuda else 'cpu')
+
     for batch in training_data_loader:
-        break
+        ques, pos, is_dup = map(lambda x: torch.from_numpy(x).to(device), batch)
+        ques = ques.view(-1, seq_max_len)
+        pos = pos.view(-1, seq_max_len)
+        a = model(ques, pos)
         print(batch)
     print("hello")
 

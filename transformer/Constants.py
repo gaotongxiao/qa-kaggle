@@ -1,0 +1,10 @@
+
+PAD = 2
+UNK = 0
+BOS = 1
+EOS = 2
+
+PAD_WORD = '<EOS>'
+UNK_WORD = '<UNK>'
+BOS_WORD = '<START>'
+EOS_WORD = '<EOS>'

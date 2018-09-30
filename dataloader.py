@@ -1,7 +1,7 @@
 import h5py
 import torch
-import torch.utils.data.dataset as Dataset
-import torch.utils.data.DataLoader as DataLoader
+from torch.utils.data.dataset import Dataset
+from torch.utils.data.dataloader import DataLoader
 
 class QDataset(Dataset):
     """Dataset wrapping data and target tensors.
@@ -31,14 +31,24 @@ class QDataset(Dataset):
         return self.data_tensor.shape[0]
 
 def load_data():
-    f = h5py.File("data/qa.hdf5", 'r')
+    f = h5py.File("/home/gt/qa.hdf5", 'r')
     ques_train = f['train']['questions']
     dup_train = f['train']["is_dup"]
     ques_test = f['test']["questions"]
+    ids_test = f['test']["ids"]
     train_set = QDataset(ques_train, dup_train)
-    test_set = QDataset(ques_test)
-    training_data_loader = DataLoader(dataset=train_set, num_workers=opt.threads, batch_size=opt.batchSize, pin_memory=True,
+    test_set = QDataset(ques_test, ids_test)
+    training_data_loader = DataLoader(dataset=train_set, num_workers=1, batch_size=10, pin_memory=False,
                                       shuffle=True)
-    testing_data_loader = DataLoader(dataset=test_set, num_workers=opt.threads, batch_size=opt.testBatchSize, pin_memory=True,
+    testing_data_loader = DataLoader(dataset=test_set, num_workers=1, batch_size=10, pin_memory=False,
                                      shuffle=False)
     return training_data_loader, testing_data_loader
+
+if __name__ == '__main__':
+    training_data_loader, testing_data_loader = load_data()
+    for batch in training_data_loader:
+        print(batch)
+        break
+    for batch in testing_data_loader:
+        print(batch)
+        break

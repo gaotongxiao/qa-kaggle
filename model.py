@@ -29,27 +29,25 @@ class Model(nn.Module):
         Q = ques[1::2]
         mask = q.eq(Constants.EOS)
         pos = pos.view(-1, seq_max_len)
-        pdb.set_trace()
         hidden = self.encoder(ques, pos)[0]
         q_hidden = hidden[0::2]
         Q_hidden = hidden[1::2]
         sim = torch.bmm(q_hidden, Q_hidden.transpose(-1, -2))
-        g = torch.log(sim.max(-1)[0])
+        g = sim.max(-1)[0]
         g.masked_fill_(mask, 0)
-        tf_q = F.embedding(q, self.tf_embed).squeeze(-1).float()
+        tf_q = F.embedding(q, tf_embed).squeeze(-1).float()
         tf_q.masked_fill_(mask, 0)
         tf_q /= torch.sum(tf_q, -1, keepdim=True)
         d_mask = torch.sum((q.unsqueeze(-1) - Q.unsqueeze(-2)).eq(0), -1).gt(0)
         tf_q.masked_fill_(d_mask, 1)
-        d = torch.log(tf_q)
-        g = torch.sum(d + g, -1)
+        d = tf_q
+        g = torch.sum(d * g, -1)
         return g
 
 
 if __name__ == '__main__':
     cuda = True
-    #training_data_loader, testing_data_loader, seq_max_len = load_data(1, 64)
-    training_data_loader, testing_data_loader, seq_max_len = load_data(1, 1)
+    training_data_loader, testing_data_loader, seq_max_len = load_data(1, 64)
     wd = pickle.load(open("data/preloaded.md", "rb"), encoding='latin1')
     embed = torch.from_numpy(wd.embedding).type(torch.FloatTensor)
     tf_embed = torch.from_numpy(pickle.load(open("data/tf_np.md", "rb"))).type(torch.cuda.LongTensor)
@@ -57,6 +55,7 @@ if __name__ == '__main__':
     model = Model(400003, seq_max_len, word_vec=embed, tf_vec=tf_embed).cuda()
     device = torch.device('cuda' if cuda else 'cpu')
     Loss = nn.BCEWithLogitsLoss()
+    # Loss = nn.L1Loss()
     optimizer = torch.optim.Adam(filter(lambda x: x.requires_grad, model.parameters()),betas=(0.9, 0.98), eps=1e-09)
 
     model.train()
@@ -66,9 +65,9 @@ if __name__ == '__main__':
         avg_loss = []
         for batch in training_data_loader:
             ques, pos, is_dup = map(lambda x: torch.from_numpy(x).to(device), batch)
-            g = model(ques, pos)
-            loss = Loss(g, is_dup.float())
-            print(loss)
+            is_dup = is_dup.float()
+            score = model(ques, pos)
+            loss = Loss(score, is_dup.float())
             avg_loss.append(loss.data)
             optimizer.zero_grad()
             loss.backward()

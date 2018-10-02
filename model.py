@@ -9,8 +9,12 @@ from dataloader import load_data
 from preload import words
 from transformer import Constants
 
+j = 0
 def c(data):
-    if torch.isnan(data).sum(-1).gt(0)[0]:
+    global j
+    j += 1
+    print("hi")
+    if torch.isnan(data).sum().gt(0)[0]:
         pdb.set_trace()
 class Model(nn.Module):
     def __init__(
@@ -33,11 +37,12 @@ class Model(nn.Module):
         mask = q.eq(Constants.EOS)
         pos = pos.view(-1, seq_max_len)
         hidden = self.encoder(ques, pos)[0]
+        hidden.register_hook(c)
         q_hidden = hidden[0::2]
         Q_hidden = hidden[1::2]
+        pdb.set_trace()
         sim = torch.bmm(q_hidden, Q_hidden.transpose(-1, -2))
         g = sim.max(-1)[0]
-        g.register_hook(c)
         g.masked_fill_(mask, 0)
         tf_q = F.embedding(q, tf_embed).squeeze(-1).float()
         tf_q.masked_fill_(mask, 0)
@@ -51,7 +56,7 @@ class Model(nn.Module):
 
 if __name__ == '__main__':
     USE_CUDA = torch.cuda.is_available()
-    BATCH_SIZE = 64
+    BATCH_SIZE = 1
     th = torch.cuda if USE_CUDA else torch
 
     training_data_loader, testing_data_loader, seq_max_len = load_data(4, BATCH_SIZE)
@@ -63,24 +68,29 @@ if __name__ == '__main__':
     device = torch.device('cuda' if USE_CUDA else 'cpu')
     Loss = nn.BCEWithLogitsLoss()
     #optimizer = torch.optim.Adam(filter(lambda x: x.requires_grad, model.parameters()),betas=(0.9, 0.98), eps=1e-09)
-    optimizer = torch.optim.SGD(filter(lambda x: x.requires_grad, model.parameters()),1e-03)
+    optimizer = torch.optim.SGD(filter(lambda x: x.requires_grad, model.parameters()),1e-09)
+    nn.utils.clip_grad_norm_(filter(lambda x: x.requires_grad, model.parameters()), 2)
 
     model.train()
     epochs = 200
 
     for e in range(epochs):
         avg_loss = []
+        a = 0
         for batch in training_data_loader:
             # preprocess
+            a += 1
+            if a < 3307: continue
             ques, is_dup = map(lambda x: x.to(device), batch)
             _, _, max_len = ques.shape
             pos = (torch.arange(max_len) + 1).type(th.LongTensor).unsqueeze(0).repeat(2 * BATCH_SIZE, 1).view(-1, 2, max_len)
             pos = pos * (ques != Constants.EOS).long()
+
             is_dup = is_dup.float()
             score = model(ques, pos)
             loss = Loss(score, is_dup.float())
             print(loss.data)
-            avg_loss.append(loss.data)
+            # avg_loss.append(loss.data)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()

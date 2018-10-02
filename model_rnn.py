@@ -75,13 +75,14 @@ if __name__ == '__main__':
 
     for e in range(epochs):
         avg_loss = []
+        a = 0
         for batch in training_data_loader:
             # preprocess
             ques, is_dup = map(lambda x: x.to(device), batch)
-            real_bs, _, max_len = ques.shape
-            if real_bs != BATCH_SIZE: continue
+            _, _, max_len = ques.shape
             pos = (torch.arange(max_len) + 1).type(th.LongTensor).unsqueeze(0).repeat(2 * BATCH_SIZE, 1).view(-1, 2, max_len)
             pos = pos * (ques != Constants.EOS).long()
+
             is_dup = is_dup.float()
             score = model(ques, pos)
             loss = Loss(score, is_dup.float())

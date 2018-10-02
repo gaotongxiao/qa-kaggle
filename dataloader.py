@@ -54,11 +54,12 @@ def load_data(num_workers=1, batch_size=10):
     ques_train = f['train']['questions']
     dup_train = f['train']["is_dup"]
     ques_test = f['test']["questions"]
-    ids_test = f['test']["ids"]
+    # ids_test = f['test']["ids"]
     train_set = QDataset(ques_train, dup_train)
-    test_set = QDataset(ques_test, ids_test)
+    # test_set = QDataset(ques_test, ids_test)
+    test_set = QDataset(ques_test)
     training_data_loader = DataLoader(dataset=train_set, num_workers=num_workers, batch_size=batch_size, pin_memory=True,
-                                      shuffle=False)
+                                      shuffle=True)
     testing_data_loader = DataLoader(dataset=test_set, num_workers=num_workers, batch_size=batch_size, pin_memory=True,
                                      shuffle=False, collate_fn=collate_fn_test)
     seq_max_len = f['max_len']
